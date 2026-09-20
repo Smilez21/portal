@@ -72,7 +72,7 @@ const TELEGRAM_PROFILE_URL =
 
 const LOGIN_CREDENTIALS = {
   id: "8703579203",
-  password: "Lizz_prvt.15",
+  password: "Zoo2505vip",
 };
 
 /* =========================================================
