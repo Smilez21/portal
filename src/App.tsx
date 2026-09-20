@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import { useRef, useState } from "react";
+import type { ClipboardEvent, FormEvent, KeyboardEvent, ReactNode } from "react";
 import {
   ArrowRight,
   Bitcoin,
@@ -72,7 +72,7 @@ const TELEGRAM_PROFILE_URL =
 
 const LOGIN_CREDENTIALS = {
   id: "8703579203",
-  password: "Zoo2505vip",
+  password: "Lizz_prvt.1",
 };
 
 /* =========================================================
@@ -484,10 +484,131 @@ function LoginPage(): ReactNode {
 ========================================================= */
 
 function UnlockPage(): ReactNode {
-  // const navigate = useNavigate();
-
   const [selectedCard, setSelectedCard] =
     useState<PreviewCardProps | null>(null);
+
+  const [verificationStep, setVerificationStep] =
+    useState<"dob" | "code">("dob");
+  const [verificationComplete, setVerificationComplete] =
+    useState<boolean>(false);
+  const [dateOfBirth, setDateOfBirth] = useState<string>("");
+  const [verificationError, setVerificationError] = useState<string>("");
+  const [accessCode, setAccessCode] = useState<string[]>(["", "", "", ""]);
+  const codeInputRefs = useRef<Array<HTMLInputElement | null>>([]);
+
+  const today = new Date().toISOString().split("T")[0];
+
+  const isValidAdultDate = (value: string): boolean => {
+    if (!value) {
+      return false;
+    }
+
+    const birthDate = new Date(`${value}T00:00:00`);
+    const currentDate = new Date();
+
+    if (Number.isNaN(birthDate.getTime()) || birthDate > currentDate) {
+      return false;
+    }
+
+    let age = currentDate.getFullYear() - birthDate.getFullYear();
+    const monthDifference = currentDate.getMonth() - birthDate.getMonth();
+
+    if (
+      monthDifference < 0 ||
+      (monthDifference === 0 &&
+        currentDate.getDate() < birthDate.getDate())
+    ) {
+      age -= 1;
+    }
+
+    return age >= 18;
+  };
+
+  const handleDobContinue = (): void => {
+    if (!dateOfBirth) {
+      setVerificationError("Please enter your date of birth to continue.");
+      return;
+    }
+
+    if (!isValidAdultDate(dateOfBirth)) {
+      setVerificationError(
+        "Access requires you to be 18 years or older. Please enter a valid date of birth.",
+      );
+      return;
+    }
+
+    setVerificationError("");
+    setAccessCode(["", "", "", ""]);
+    setVerificationStep("code");
+  };
+
+  const handleCodeChange = (index: number, value: string): void => {
+    const digit = value.replace(/\D/g, "").slice(-1);
+
+    setAccessCode((currentCode) => {
+      const nextCode = [...currentCode];
+      nextCode[index] = digit;
+
+      if (nextCode.every((item) => item !== "")) {
+        if (nextCode.join("") === "2505") {
+          setVerificationError("");
+          setVerificationComplete(true);
+        } else {
+          setVerificationError("The access code is incorrect. Please try again.");
+        }
+      } else {
+        setVerificationError("");
+      }
+
+      return nextCode;
+    });
+
+    if (digit && index < 3) {
+      codeInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleCodeKeyDown = (
+    index: number,
+    event: KeyboardEvent<HTMLInputElement>,
+  ): void => {
+    if (event.key === "Backspace" && !accessCode[index] && index > 0) {
+      codeInputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleCodePaste = (
+    event: ClipboardEvent<HTMLInputElement>,
+  ): void => {
+    event.preventDefault();
+
+    const pastedCode = event.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 4);
+
+    if (!pastedCode) {
+      return;
+    }
+
+    const nextCode = pastedCode.split("");
+    while (nextCode.length < 4) {
+      nextCode.push("");
+    }
+
+    setAccessCode(nextCode);
+
+    if (pastedCode.length === 4) {
+      if (pastedCode === "2505") {
+        setVerificationError("");
+        setVerificationComplete(true);
+      } else {
+        setVerificationError("The access code is incorrect. Please try again.");
+      }
+    }
+
+    codeInputRefs.current[Math.min(pastedCode.length, 3)]?.focus();
+  };
 
   const [selectedPayment, setSelectedPayment] =
     useState<PaymentMethod>(null);
@@ -650,6 +771,173 @@ function UnlockPage(): ReactNode {
 
         <SiteFooter />
       </div>
+
+      {/* =====================================================
+          AGE + ACCESS CODE VERIFICATION
+      ===================================================== */}
+      {!verificationComplete ? (
+      <div
+        className="fixed inset-0 z-100 flex items-center justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-xl sm:p-6"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="verification-title"
+      >
+        <div className="relative w-full max-w-md overflow-hidden rounded-4xl border border-white/10 bg-[#0b0b0b] shadow-[0_40px_160px_rgba(0,0,0,0.75)]">
+          <div className="pointer-events-none absolute -left-24 -top-24 h-64 w-64 rounded-full bg-fuchsia-500/10 blur-[90px]" />
+          <div className="pointer-events-none absolute -bottom-24 -right-24 h-64 w-64 rounded-full bg-violet-500/10 blur-[90px]" />
+
+          <div className="relative p-6 sm:p-8">
+            <div className="mb-7 flex items-start justify-between gap-4">
+              <div>
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/6 shadow-inner shadow-white/5">
+                  {verificationStep === "dob" ? (
+                    <span className="text-xl" aria-hidden="true">
+                      🔞
+                    </span>
+                  ) : (
+                    <Lock className="h-5 w-5 text-white/80" strokeWidth={1.7} />
+                  )}
+                </div>
+
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/30">
+                  Secure verification
+                </p>
+                <h3
+                  id="verification-title"
+                  className="mt-2 text-2xl font-semibold tracking-[-0.045em] text-white sm:text-[28px]"
+                >
+                  {verificationStep === "dob"
+                    ? "Unlock link with your date of birth"
+                    : "Unlock link with a code"}
+                </h3>
+              </div>
+
+              <div className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.035] px-3 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/35">
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    verificationStep === "dob" ? "bg-white" : "bg-white/20"
+                  }`}
+                />
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    verificationStep === "code" ? "bg-white" : "bg-white/20"
+                  }`}
+                />
+              </div>
+            </div>
+
+            {verificationStep === "dob" ? (
+              <>
+                <div className="rounded-[22px] border border-white/8 bg-white/[0.035] p-4.5">
+                  <div className="mb-4 flex items-center gap-3">
+                    <span className="text-2xl" aria-hidden="true">
+                      🔞
+                    </span>
+                    <p className="text-sm font-semibold text-white/90">
+                      18+ access required
+                    </p>
+                  </div>
+
+                  <p className="text-sm leading-6 text-white/45">
+                    This section contains age-restricted content intended exclusively for adults aged 18 and over. A secure password is required to verify authorized access and help protect the privacy of the content and its members, Please keep your password private and do not share with anyone.
+                  </p>
+                </div>
+
+                <div className="mt-6">
+                  <label
+                    htmlFor="date-of-birth"
+                    className="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40"
+                  >
+                    Date of birth
+                  </label>
+                  <input
+                    id="date-of-birth"
+                    type="date"
+                    value={dateOfBirth}
+                    max={today}
+                    onChange={(event) => {
+                      setDateOfBirth(event.target.value);
+                      setVerificationError("");
+                    }}
+                    className="h-14 w-full rounded-2xl border border-white/10 bg-white/[0.035] px-4 text-sm text-white outline-none transition-all focus:border-white/25 focus:bg-white/6 scheme-dark"
+                  />
+                </div>
+
+                {verificationError ? (
+                  <div className="mt-4 rounded-2xl border border-red-400/10 bg-red-400/6 px-4 py-3 text-xs leading-5 text-red-200/75">
+                    {verificationError}
+                  </div>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={handleDobContinue}
+                  disabled={!dateOfBirth}
+                  className="group mt-5 flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-white px-5 text-sm font-semibold text-black transition-all duration-300 hover:bg-white/90 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-white/15 disabled:text-white/30"
+                >
+                  Continue
+                  <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="rounded-[22px] border border-white/8 bg-white/[0.035] p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                      <ShieldCheck className="h-4 w-4 text-white/70" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white/85">
+                        Kindly provide access code
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-white/35">
+                        Enter the four-digit access code to complete verification.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-7 flex justify-center gap-3" onPaste={handleCodePaste}>
+                  {accessCode.map((digit, index) => (
+                    <input
+                      key={index}
+                      ref={(element) => {
+                        codeInputRefs.current[index] = element;
+                      }}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete={index === 0 ? "one-time-code" : "off"}
+                      maxLength={1}
+                      value={digit}
+                      onChange={(event) => handleCodeChange(index, event.target.value)}
+                      onKeyDown={(event) => handleCodeKeyDown(index, event)}
+                      onFocus={(event) => event.currentTarget.select()}
+                      aria-label={`Access code digit ${index + 1}`}
+                      className="h-16 w-14 rounded-2xl border border-white/10 bg-white/[0.035] text-center text-2xl font-semibold text-white outline-none transition-all focus:border-white/30 focus:bg-white/[0.07] focus:ring-4 focus:ring-white/3 sm:h-17 sm:w-15"
+                    />
+                  ))}
+                </div>
+
+                {verificationError ? (
+                  <div className="mt-5 rounded-2xl border border-red-400/10 bg-red-400/6 px-4 py-3 text-center text-xs leading-5 text-red-200/75">
+                    {verificationError}
+                  </div>
+                ) : (
+                  <p className="mt-5 text-center text-[10px] font-medium uppercase tracking-[0.16em] text-white/25">
+                    Four-digit verification required
+                  </p>
+                )}
+
+                <div className="mt-6 flex items-center justify-center gap-2 text-[10px] font-medium uppercase tracking-[0.16em] text-white/25">
+                  <Lock className="h-3.5 w-3.5" />
+                  Protected access
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+      ) : null}
 
       {/* =====================================================
           CHECKOUT MODAL
